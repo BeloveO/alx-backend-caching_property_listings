@@ -27,38 +27,50 @@ def get_all_properties():
     return property_data
 
 def get_redis_cache_metrics():
-    # get redis connection via django redis
-    redis_conn = get_redis_connection('default')
+    try:
+        # get redis connection via django redis
+        redis_conn = get_redis_connection('default')
 
-    # get redis info command output
-    info = redis_conn.info()
+        # get redis info command output
+        info = redis_conn.info()
 
-    # extract cache stats
-    stats = info.get('stats', {})
-    keyspace_hits = stats.get('keyspace_hits', 0)
-    keyspace_misses = stats.get('keyspace_misses', 0)
+        # extract cache stats
+        stats = info.get('stats', {})
+        keyspace_hits = stats.get('keyspace_hits', 0)
+        keyspace_misses = stats.get('keyspace_misses', 0)
 
-    # Calculate hit ratio
-    total = keyspace_hits + keyspace_misses
-    if total > 0:
-        hit_ratio = keyspace_hits / total
-        hit_ratio_percentage = hit_ratio * 100
-    else:
-        hit_ratio = 0.0
-        hit_ratio_percentage = 0.0
+        # Calculate hit ratio
+        total_requests = keyspace_hits + keyspace_misses
+        if total_requests > 0:
+            hit_ratio = keyspace_hits / total_requests
+            hit_ratio_percentage = hit_ratio * 100
+        else:
+            hit_ratio = 0.0
+            hit_ratio_percentage = 0.0
 
-    metrics = {
-        'keyspace_hits': keyspace_hits,
-        'keyspace_misses': keyspace_misses,
-        'total': total,
-        'hit_ratio': hit_ratio,
-        'hit_ratio_percentage': hit_ratio_percentage,
-    }
+        metrics = {
+            'keyspace_hits': keyspace_hits,
+            'keyspace_misses': keyspace_misses,
+            'total': total_requests,
+            'hit_ratio': hit_ratio,
+            'hit_ratio_percentage': hit_ratio_percentage,
+        }
 
-    logger.info(
-        f"Redis Cache Metrics: "
-        f"{metrics['hit_ratio_percentage']}% hit ratio "
-        f"({metrics['keyspace_hits']} hits, {metrics['keyspace_misses']} misses) - "
-    )
+        logger.info(
+            f"Redis Cache Metrics: "
+            f"{metrics['hit_ratio_percentage']}% hit ratio "
+            f"({metrics['keyspace_hits']} hits, {metrics['keyspace_misses']} misses) - "
+        )
 
-    return metrics
+        return metrics
+    
+    except Exception as e:
+        logger.error(f"Error getting Redis cache metrics: {str(e)}")
+        return {
+            'error': str(e),
+            'keyspace_hits': 0,
+            'keyspace_misses': 0,
+            'total_requests': 0,
+            'hit_ratio': 0.0,
+            'hit_ratio_percentage': 0.0,
+        }
